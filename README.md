@@ -26,9 +26,9 @@ Local Installation
     ```
     terraform {
       required_providers {
-				st-cloudflare = {
-					source = "example.local/myklst/st-cloudflare"
-				}
+        st-cloudflare = {
+          source = "example.local/myklst/st-cloudflare"
+        }
       }
     }
 
