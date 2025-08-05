@@ -43,6 +43,7 @@ func (r *zoneTypeResource) Metadata(_ context.Context, req resource.MetadataRequ
 
 func (r *zoneTypeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Provide a Cloudflare zone plan resource.",
 		Attributes: map[string]schema.Attribute{
 			"zone_id": schema.StringAttribute{
 				Description: "Cloudflare zone ID.",
