@@ -5,8 +5,8 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/cloudflare/cloudflare-go/v4"
-	"github.com/cloudflare/cloudflare-go/v4/option"
+	"github.com/cloudflare/cloudflare-go/v7"
+	"github.com/cloudflare/cloudflare-go/v7/option"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -23,6 +23,13 @@ var (
 )
 
 type cloudflareProvider struct{}
+
+// providerClients bundles the shared cloudflare-go client handed to
+// resources and data sources. Resources carry their own scope (account,
+// sandbox) as resource attributes.
+type providerClients struct {
+	cloudflare *cloudflare.Client
+}
 
 type cloudflareProviderModel struct {
 	Email    types.String `tfsdk:"email" json:"email"`
@@ -56,7 +63,8 @@ func (p *cloudflareProvider) Schema(_ context.Context, _ provider.SchemaRequest,
 				Description: "The API key for operations. May also be provided via CLOUDFLARE_API_KEY environment variable. " +
 					"API keys are now considered legacy by Cloudflare, API tokens should be used instead. " +
 					"Must provide only one of `api_key`, `api_token`.",
-				Optional: true,
+				Optional:  true,
+				Sensitive: true,
 				Validators: []validator.String{
 					stringvalidator.RegexMatches(
 						regexp.MustCompile(`[0-9a-f]{37}`),
@@ -70,11 +78,12 @@ func (p *cloudflareProvider) Schema(_ context.Context, _ provider.SchemaRequest,
 			"api_token": schema.StringAttribute{
 				Description: "The API Token for operations. May also be provided via CLOUDFLARE_API_TOKEN " +
 					"environment variable. Must provide only one of `api_key`, `api_token`.",
-				Optional: true,
+				Optional:  true,
+				Sensitive: true,
 				Validators: []validator.String{
 					stringvalidator.RegexMatches(
-						regexp.MustCompile(`[A-Za-z0-9-_]{40}`),
-						"API tokens must be 40 characters long and only contain characters a-z, A-Z, 0-9, hyphens and underscores",
+						regexp.MustCompile(`^(cfat_)?[A-Za-z0-9_-]{40,}$`),
+						"API tokens must be at least 40 characters (or a cfat_ account-owned token) and only contain characters a-z, A-Z, 0-9, hyphens and underscores",
 					),
 				},
 			},
@@ -155,8 +164,12 @@ func (p *cloudflareProvider) Configure(ctx context.Context, req provider.Configu
 		)
 	}
 
-	resp.DataSourceData = client
-	resp.ResourceData = client
+	clients := &providerClients{
+		cloudflare: client,
+	}
+
+	resp.DataSourceData = clients
+	resp.ResourceData = clients
 }
 
 func (p *cloudflareProvider) DataSources(_ context.Context) []func() datasource.DataSource {
@@ -166,5 +179,6 @@ func (p *cloudflareProvider) DataSources(_ context.Context) []func() datasource.
 func (p *cloudflareProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewZoneTypeResource,
+		NewCloudflareDomainResource,
 	}
 }
