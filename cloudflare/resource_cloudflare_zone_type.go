@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cenkalti/backoff"
-	"github.com/cloudflare/cloudflare-go/v4"
-	"github.com/cloudflare/cloudflare-go/v4/shared"
-	"github.com/cloudflare/cloudflare-go/v4/zones"
+	"github.com/cenkalti/backoff/v4"
+	"github.com/cloudflare/cloudflare-go/v7"
+	"github.com/cloudflare/cloudflare-go/v7/shared"
+	"github.com/cloudflare/cloudflare-go/v7/zones"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -77,12 +77,12 @@ func (r *zoneTypeResource) Configure(ctx context.Context, req resource.Configure
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*cloudflare.Client)
+	clients, ok := req.ProviderData.(*providerClients)
 	if !ok {
-		resp.Diagnostics.AddError("req.ProviderData isn't a namecheap.Client", "")
+		resp.Diagnostics.AddError("req.ProviderData isn't a *providerClients", "")
 		return
 	}
-	r.client = client
+	r.client = clients.cloudflare
 }
 
 func (r *zoneTypeResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -193,8 +193,8 @@ func (r *zoneTypeResource) Delete(ctx context.Context, req resource.DeleteReques
 
 	_, err = r.client.Zones.Subscriptions.New(
 		context.TODO(),
-		zoneId,
 		zones.SubscriptionNewParams{
+			ZoneID: cloudflare.F(zoneId),
 			Subscription: shared.SubscriptionParam{
 				Frequency: cloudflare.F(shared.SubscriptionFrequencyMonthly),
 				RatePlan: cloudflare.F(shared.RatePlanParam{
@@ -217,8 +217,8 @@ func (r *zoneTypeResource) updateZoneType(zoneId string, zonePlan string, zoneTy
 	getDomainExpiryInfo := func() error {
 		_, err = r.client.Zones.Subscriptions.New(
 			context.TODO(),
-			zoneId,
 			zones.SubscriptionNewParams{
+				ZoneID: cloudflare.F(zoneId),
 				Subscription: shared.SubscriptionParam{
 					Frequency: cloudflare.F(shared.SubscriptionFrequencyMonthly),
 					RatePlan: cloudflare.F(shared.RatePlanParam{
